@@ -2,7 +2,9 @@ import express from 'express'
 import jwt, { decode, verify } from 'jsonwebtoken'
 const authRouter = express.Router()
 
-import { CLIENT_ID, COOKIE_MAX_AGE_IN_STRING, FRONTEND_URL, JWT_EXPIRE_TIME, JWT_SECRET } from './config'
+import { COOKIE_MAX_AGE_IN_STRING, CRYPTO_KEY, JWT_EXPIRE_TIME, JWT_SECRET, prisma } from './config'
+import { Provider } from '@prisma/client'
+import { decryptMessageWithKey, encryptMessageWithKey, getRandomPublicAndPrivateKey } from './web3utils'
 
 async function handleGoogleCredential(access_token: string) {
     const url = 'https://www.googleapis.com/oauth2/v3/userinfo'
@@ -30,15 +32,16 @@ async function handleGoogleCredential(access_token: string) {
     }
 }
 
-function handleGetJwtToken(email: string, name: string): string {
+function handleGetJwtToken(email: string, username: string, publicKey: string, userId: number): string {
     if (!JWT_SECRET) {
         return 'jwt secret missing'
     }
 
-    const jwtToken = jwt.sign({ email, name }, JWT_SECRET, { expiresIn: JWT_EXPIRE_TIME })
+    const jwtToken = jwt.sign({ email, username, publicKey, userId }, JWT_SECRET, { expiresIn: JWT_EXPIRE_TIME })
 
     return jwtToken
 }
+
 
 authRouter.post('/', async (req, res) => {
     const result = await handleGoogleCredential(req.body.access_token)
@@ -53,7 +56,36 @@ authRouter.post('/', async (req, res) => {
     const payload = result.msg
     const { email, name, given_name, family_name, picture } = payload
 
-    const jwtToken = handleGetJwtToken(email, name)
+    let user = await prisma.user.findUnique({
+        where: {
+            email
+        }
+    })
+
+    if (!user) {
+        const {publicKey, privateKey} :{
+            publicKey: string,
+            privateKey: string
+        } = getRandomPublicAndPrivateKey()
+
+        const encryptedPrivateKey = encryptMessageWithKey(privateKey, CRYPTO_KEY)
+
+
+        user = await prisma.user.create({
+            data: {
+                username: name,
+                email,
+                publicKey,
+                picture,
+                privateKey: encryptedPrivateKey,
+                provider: Provider.Google,
+            }
+        })
+    }
+
+    const {privateKey, ...data} = user
+
+    const jwtToken = handleGetJwtToken(email, name, data.publicKey, user.userId)
 
     res.cookie('token', jwtToken, {
         maxAge: Number(COOKIE_MAX_AGE_IN_STRING),
@@ -62,7 +94,7 @@ authRouter.post('/', async (req, res) => {
 
     return res.status(200).json({
         valid: true,
-        msg: result,
+        msg: data
     })
 })
 

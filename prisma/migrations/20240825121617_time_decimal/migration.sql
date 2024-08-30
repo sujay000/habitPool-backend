@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Task" ALTER COLUMN "time" SET DATA TYPE DECIMAL(65,30);

@@ -1,0 +1,76 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url  	    = env("DATABASE_URL")
+}
+
+
+model User {
+  userId      Int     @id @default(autoincrement())
+  username    String? @unique
+  email       String? @unique
+  picture     String?
+  publicKey   String  @unique
+  privateKey  String?
+  provider    Provider
+  tasks       Task[]  @relation("TaskParticipants")
+  createdTasks Task[] @relation("TaskCreator")
+
+  TaskParticipant TaskParticipant[]
+  TaskResult      TaskResult[]
+}
+
+model Task {
+  taskId             Int              @id @default(autoincrement())
+  name               String
+  description        String?
+  creator            User             @relation("TaskCreator", fields: [creatorId], references: [userId])
+  creatorId          Int
+  accountPublicKey   String
+  accountPrivateKey  String
+  participants       TaskParticipant[]
+  results            TaskResult[]
+  time               Decimal              // Using Int to store number of seconds
+  status             TaskStatus
+
+  User               User[]           @relation("TaskParticipants")
+}
+
+model TaskParticipant {
+  taskId     Int
+  userId     Int
+  amount     Decimal
+  user       User @relation(fields: [userId], references: [userId])
+  task       Task @relation(fields: [taskId], references: [taskId])
+
+  @@id([taskId, userId])
+}
+
+model TaskResult {
+  taskId     Int
+  userId     Int
+  result     Boolean
+  user       User @relation(fields: [userId], references: [userId])
+  task       Task @relation(fields: [taskId], references: [taskId])
+
+  @@id([taskId, userId])
+}
+
+enum Provider {
+  Google
+  Wallet
+}
+
+enum TaskStatus {
+  Done
+  Pending
+}
