@@ -90,6 +90,7 @@ authRouter.post('/', async (req, res) => {
     res.cookie('token', jwtToken, {
         maxAge: Number(COOKIE_MAX_AGE_IN_STRING),
         httpOnly: true,
+        sameSite: 'lax'
     })
 
     return res.status(200).json({
