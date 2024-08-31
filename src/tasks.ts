@@ -115,8 +115,8 @@ taskRouter.post('/create', async (req, res) => {
         } = getRandomPublicAndPrivateKey()
         const encryptedPrivateKey = encryptMessageWithKey(accountPrivateKey, CRYPTO_KEY)
 
-        await transferSol(decryptMessageWithKey(user.privateKey!, CRYPTO_KEY), user.publicKey, accountPublicKey, amount)
-
+        const transactionSignature = await transferSol(decryptMessageWithKey(user.privateKey!, CRYPTO_KEY), user.publicKey, accountPublicKey, amount)
+        
         const task = await prisma.task.create({
             data: {
                 name,

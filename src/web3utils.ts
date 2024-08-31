@@ -82,6 +82,7 @@ export async function transferSol(senderSecretKey: string, senderPublicKey: stri
 		console.log("Here sujsap==================");
 		console.log(signature);
 		console.log("Here sujsap==================");
+		return signature
 	} catch (error) {
 		
 		// @ts-ignore
