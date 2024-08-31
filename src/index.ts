@@ -16,6 +16,15 @@ app.use(express.json())
 
 app.use(morgan('tiny'))
 app.use(cookieParser())
+
+app.get('/test/:id', (req, res) => {
+    const { id } = req.params
+    return res.status(200).json({
+        message: 'Hello World test ' + id,
+    })
+})
+
+
 app.use(
     cors({
         credentials: true,
