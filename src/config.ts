@@ -7,6 +7,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL!
 import { PrismaClient } from "@prisma/client"
 const prisma = new PrismaClient();
 const CRYPTO_KEY = process.env.CRYPTO_KEY!
+const CUSTOM_ENV = process.env.CUSTOM_ENV!
 
 export { 
     JWT_SECRET, 
@@ -16,5 +17,6 @@ export {
     FRONTEND_URL, 
     PORT, 
     prisma, 
-    CRYPTO_KEY
+    CRYPTO_KEY,
+    CUSTOM_ENV
 }

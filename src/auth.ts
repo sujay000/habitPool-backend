@@ -2,7 +2,7 @@ import express from 'express'
 import jwt, { decode, verify } from 'jsonwebtoken'
 const authRouter = express.Router()
 
-import { COOKIE_MAX_AGE_IN_STRING, CRYPTO_KEY, JWT_EXPIRE_TIME, JWT_SECRET, prisma } from './config'
+import { COOKIE_MAX_AGE_IN_STRING, CRYPTO_KEY, CUSTOM_ENV, JWT_EXPIRE_TIME, JWT_SECRET, prisma } from './config'
 import { Provider } from '@prisma/client'
 import { decryptMessageWithKey, encryptMessageWithKey, getRandomPublicAndPrivateKey } from './web3utils'
 
@@ -90,7 +90,8 @@ authRouter.post('/', async (req, res) => {
     res.cookie('token', jwtToken, {
         maxAge: Number(COOKIE_MAX_AGE_IN_STRING),
         httpOnly: true,
-        sameSite: 'lax'
+        sameSite: 'lax',
+        secure: CUSTOM_ENV === 'production'
     })
 
     return res.status(200).json({
