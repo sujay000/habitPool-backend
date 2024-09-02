@@ -6,7 +6,7 @@ import morgan from 'morgan'
 
 import { FRONTEND_URL, PORT } from './config'
 import authRouter from './auth'
-import { authenticateToken } from './utilFunctions'
+import { authenticateToken, completeTasks } from './utilFunctions'
 import taskRouter from './tasks'
 import { getAirdrop } from './web3utils'
 
@@ -17,7 +17,14 @@ app.use(express.json())
 app.use(morgan('tiny'))
 app.use(cookieParser())
 
-app.get('/test/:id', (req, res) => {
+app.get('/test/:id', async (req, res) => {
+
+    try {
+        await completeTasks()
+    } catch (e) {
+        console.log(e)
+    }
+
     const { id } = req.params
     return res.status(200).json({
         message: 'Hello World test ' + id,

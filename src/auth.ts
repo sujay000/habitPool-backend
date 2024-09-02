@@ -1,4 +1,4 @@
-import express from 'express'
+import express, { CookieOptions } from 'express'
 import jwt, { decode, verify } from 'jsonwebtoken'
 const authRouter = express.Router()
 
@@ -87,12 +87,17 @@ authRouter.post('/', async (req, res) => {
 
     const jwtToken = handleGetJwtToken(email, name, data.publicKey, user.userId)
 
-    res.cookie('token', jwtToken, {
+    const cookieOptions: CookieOptions = {
         maxAge: Number(COOKIE_MAX_AGE_IN_STRING),
         httpOnly: true,
-        sameSite: 'none',
-        secure: CUSTOM_ENV === 'production'
-    })
+        
+    }
+    if (CUSTOM_ENV === 'production') {
+        cookieOptions.sameSite = 'none'
+        cookieOptions.secure = true
+    }
+
+    res.cookie('token', jwtToken, cookieOptions)
 
     return res.status(200).json({
         valid: true,

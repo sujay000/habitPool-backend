@@ -73,4 +73,5 @@ enum Provider {
 enum TaskStatus {
   Done
   Pending
+  NoConsensus
 }

@@ -1,5 +1,5 @@
 import express from 'express'
-import { CRYPTO_KEY, prisma } from './config'
+import { CRYPTO_KEY, EXTRA_SOL, prisma } from './config'
 import { decryptMessageWithKey, encryptMessageWithKey, getBalance, getRandomPublicAndPrivateKey, transferSol } from './web3utils'
 import { empty } from '@prisma/client/runtime/library'
 import e from 'express'
@@ -49,6 +49,9 @@ taskRouter.get("/", async (req, res) => {
                 }
             })
             
+            console.log(task.time);
+            console.log(typeof task.time);
+            
             return {
                 taskId: task.taskId,
                 name: task.name,
@@ -94,7 +97,7 @@ taskRouter.post('/create', async (req, res) => {
                 msg: "insufficient balance, please add money to your wallet"
             })
         }
-        
+
         const user = await prisma.user.findUnique({
             where: {
                 email,
@@ -116,7 +119,7 @@ taskRouter.post('/create', async (req, res) => {
         const encryptedPrivateKey = encryptMessageWithKey(accountPrivateKey, CRYPTO_KEY)
 
         const transactionSignature = await transferSol(decryptMessageWithKey(user.privateKey!, CRYPTO_KEY), user.publicKey, accountPublicKey, amount)
-        
+
         const task = await prisma.task.create({
             data: {
                 name,
@@ -136,6 +139,15 @@ taskRouter.post('/create', async (req, res) => {
                 amount: parseFloat(amount),
             }
         })
+
+        const taskResult = await prisma.taskResult.create({
+            data: {
+                taskId: task.taskId,
+                userId: user.userId,
+                result: false
+            }
+        })
+
 
     } catch (error) {
         console.log(`there was error while creating task ${error}`);
@@ -157,7 +169,7 @@ taskRouter.post('/add-participant', async (req, res) => {
     // const user = req.user  
     // const {username, email, publicKey } = user
 
-    const { email: participantEmail, taskId} = req.body
+    const { email: participantEmail, taskId } = req.body
 
 
     try {
@@ -179,18 +191,26 @@ taskRouter.post('/add-participant', async (req, res) => {
             }
         })
 
-        if(isParticipantAlreadyAdded) {
+        if (isParticipantAlreadyAdded) {
             return res.status(400).json({
                 valid: true,
                 msg: "participant already added"
             })
         }
-        
+
         const taskParticipant = await prisma.taskParticipant.create({
             data: {
                 userId: user.userId,
                 taskId: taskId,
                 amount: 0.0,
+            }
+        })
+
+        const taskResult = await prisma.taskResult.create({
+            data: {
+                taskId: taskId,
+                userId: user.userId,
+                result: false
             }
         })
 
@@ -211,14 +231,14 @@ taskRouter.post('/add-participant', async (req, res) => {
 
 taskRouter.post('/add-amount', async (req, res) => {
     // @ts-ignore    
-    const user = req.user  
-    const {username, email, publicKey } = user
+    const user = req.user
+    const { username, email, publicKey } = user
 
-    let { taskId, amount} = req.body
+    let { taskId, amount } = req.body
     taskId = parseInt(taskId)
     amount = parseFloat(amount)
     amount = Number(amount)
-    
+
     try {
         const task = await prisma.task.findUnique({
             where: {
@@ -247,6 +267,17 @@ taskRouter.post('/add-amount', async (req, res) => {
             })
         }
 
+        const balance = await getBalance(publicKey)
+
+        if (balance + EXTRA_SOL < amount) {
+            return res.status(400).json({
+                valid: false,
+                msg: "insufficient balance, please add money to your wallet"
+            })
+        }
+
+        await transferSol(decryptMessageWithKey(user.privateKey!, CRYPTO_KEY), user.publicKey, task.accountPublicKey, amount)
+
         const updatedTaskParticipant = await prisma.taskParticipant.upsert({
             where: {
                 taskId_userId: {
@@ -265,6 +296,7 @@ taskRouter.post('/add-amount', async (req, res) => {
                 amount: parseFloat(amount)
             }
         });
+
     } catch (error) {
         console.log(`there was error while adding amount ${error}`);
         return res.status(500).json({
@@ -283,12 +315,12 @@ taskRouter.post('/add-amount', async (req, res) => {
 
 taskRouter.post('/done', async (req, res) => {
     //@ts-ignore    
-    const user = req.user  
-    const {username, email, publicKey } = user
+    const user = req.user
+    const { username, email, publicKey } = user
 
-    let { taskId} = req.body
+    let { taskId } = req.body
     taskId = parseInt(taskId)
-    
+
     try {
         const task = await prisma.task.findUnique({
             where: {
@@ -303,29 +335,22 @@ taskRouter.post('/done', async (req, res) => {
             })
         }
 
-        const taskResult = await prisma.taskResult.findFirst({
+        const taskResult = await prisma.taskResult.upsert({
             where: {
-                taskId: task.taskId,
-                userId: user.userId
-            }
-        })
-
-        if(taskResult) {
-            return res.status(400).json({
-                valid: false,
-                msg: "task already done"
-            })
-        }
-
-        await prisma.taskResult.create({
-            data: {
+                taskId_userId: {
+                    taskId: task.taskId,
+                    userId: user.userId
+                }
+            },
+            update: {
+                result: true
+            },
+            create: {
                 taskId: task.taskId,
                 userId: user.userId,
                 result: true
             }
         })
-
-
     } catch (error) {
         console.log(`there was error while creating task ${error}`);
         return res.status(500).json({
